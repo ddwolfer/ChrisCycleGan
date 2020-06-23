@@ -1,6 +1,7 @@
 from __future__ import division
 import os
 import time
+import shutil
 from glob import glob
 import tensorflow as tf
 import numpy as np
@@ -121,6 +122,7 @@ class cyclegan(object):
         for var in t_vars: print(var.name)
 
     def train(self, args):
+        backupFlag = 1
         """Train cyclegan"""
         self.lr = tf.placeholder(tf.float32, None, name='learning_rate')
         self.d_optim = tf.train.AdamOptimizer(self.lr, beta1=args.beta1) \
@@ -180,23 +182,28 @@ class cyclegan(object):
 
                 if np.mod(counter, args.save_freq) == 2:
                     self.save(args.checkpoint_dir, counter)
-
-                #額外存起來
-                if self.save_model != 0:
-                    if (epoch+1) % self.save_model == 0:
+                    #額外存起來
+                    if ( (epoch+1) % self.save_model == 0 ) and backupFlag==1:
                         self.save_backup( 'model', epoch , counter)
+                        #放一個flag避免重複備份
+                        backupFlag = 0
+                    else:
+                        #如果進了下一個epoch 把flag變成1
+                        if (epoch+1) % self.save_model != 0:
+                            backupFlag = 1
+                    
 
     def save_backup(self, save_dir, epoch_now, step):
-        model_name = "cyclegan"+str(epoch_now)+"epoch.model"
-        model_dir = "%s_%s" % (self.dataset_dir, self.image_size)
-        save_dir = os.path.join(save_dir, model_dir)
-        save_dir = os.path.join(save_dir, epoch_now)
+        #創一個專門放的資料夾
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
+        #把目前checkpoint裡面的內容備份
+        sourceLink = './checkpoint/'+str(self.dataset_dir)+'/'
+        targetLink = './'+str(save_dir)+'/epoch'+str(epoch_now)+'/'
 
-        self.saver.save(self.sess,
-                        os.path.join(save_dir, model_name),
-                        global_step=step)
+        shutil.copytree(sourceLink,targetLink)
+
+
 
     def save(self, checkpoint_dir, step):
         model_name = "cyclegan.model"
