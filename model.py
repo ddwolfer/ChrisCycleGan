@@ -19,6 +19,9 @@ class cyclegan(object):
         self.output_c_dim = args.output_nc
         self.L1_lambda = args.L1_lambda
         self.dataset_dir = args.dataset_dir
+        self.sample_image_A = args.sample_image_A
+        self.sample_image_B = args.sample_image_B
+        self.save_model = args.save_model
 
         self.discriminator = discriminator
         if args.use_resnet:
@@ -178,6 +181,23 @@ class cyclegan(object):
                 if np.mod(counter, args.save_freq) == 2:
                     self.save(args.checkpoint_dir, counter)
 
+                #額外存起來
+                if self.save_model != 0:
+                    if (epoch+1) % self.save_model == 0:
+                        self.save_backup( 'model', epoch , counter)
+
+    def save_backup(self, save_dir, epoch_now, step):
+        model_name = "cyclegan"+str(epoch_now)+"epoch.model"
+        model_dir = "%s_%s" % (self.dataset_dir, self.image_size)
+        save_dir = os.path.join(save_dir, model_dir)
+        save_dir = os.path.join(save_dir, epoch_now)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        self.saver.save(self.sess,
+                        os.path.join(save_dir, model_name),
+                        global_step=step)
+
     def save(self, checkpoint_dir, step):
         model_name = "cyclegan.model"
         model_dir = "%s_%s" % (self.dataset_dir, self.image_size)
@@ -203,12 +223,25 @@ class cyclegan(object):
             return True
         else:
             return False
-
+    #有改過 by柏辰
     def sample_model(self, sample_dir, epoch, idx):
-        dataA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
-        dataB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
-        np.random.shuffle(dataA)
-        np.random.shuffle(dataB)
+        #設定要用哪一張圖片當sample A
+        if self.sample_image_A != "0":
+            dataA = []
+            dataA.append('./datasets/'+str(self.dataset_dir)+'/testA/'+self.sample_image_A)
+            pass
+        else:
+            dataA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
+            np.random.shuffle(dataA)
+        #設定要用哪一張圖片當sample B
+        if self.sample_image_B != "0":
+            dataB = []
+            dataB.append('./datasets/'+str(self.dataset_dir)+'/testB/'+self.sample_image_B)
+            pass
+        else:
+            dataB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
+            np.random.shuffle(dataB)
+
         batch_files = list(zip(dataA[:self.batch_size], dataB[:self.batch_size]))
         sample_images = [load_train_data(batch_file, is_testing=True) for batch_file in batch_files]
         sample_images = np.array(sample_images).astype(np.float32)

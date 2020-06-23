@@ -2,7 +2,7 @@ import argparse
 import os
 import tensorflow as tf
 tf.set_random_seed(19)
-from model import cyclegan
+from model import cyclegan 
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--dataset_dir', dest='dataset_dir', default='horse2zebra', help='path of the dataset')
@@ -30,6 +30,9 @@ parser.add_argument('--L1_lambda', dest='L1_lambda', type=float, default=10.0, h
 parser.add_argument('--use_resnet', dest='use_resnet', type=bool, default=True, help='generation network using reidule block')
 parser.add_argument('--use_lsgan', dest='use_lsgan', type=bool, default=True, help='gan loss defined in lsgan')
 parser.add_argument('--max_size', dest='max_size', type=int, default=50, help='max size of image pool, 0 means do not use image pool')
+parser.add_argument('--sample_image_A', dest='sample_image_A', default='0', help='choice sample image in testA')
+parser.add_argument('--sample_image_B', dest='sample_image_B', default='0', help='choice sample image in testB')
+parser.add_argument('--save_model', dest='save_model', type=int, default=0, help='How many times to save the model')
 
 args = parser.parse_args()
 
@@ -43,7 +46,7 @@ def main(_):
         os.makedirs(args.test_dir)
 
     tfconfig = tf.ConfigProto(allow_soft_placement=True)
-    tfconfig.gpu_options.allow_growth = True
+    tfconfig.gpu_options.allow_growth = True #開啟GPU
     with tf.Session(config=tfconfig) as sess:
         model = cyclegan(sess, args)
         model.train(args) if args.phase == 'train' \
