@@ -1,3 +1,23 @@
+model0628.py
+未共用
+類型
+文字
+大小
+15 KB (15,581 個位元組)
+儲存空間使用量
+15 KB (15,581 個位元組)
+位置
+CycleGANT
+擁有者
+我
+上次修改時間
+我在2020年6月28日修改過
+上次開啟時間
+我在下午5:53開啟過
+建立日期
+2020年6月28日 (使用「Google Drive Web」建立)
+新增說明
+檢視者可以下載
 from __future__ import division
 import os
 import time
@@ -23,6 +43,7 @@ class cyclegan(object):
         self.sample_image_A = args.sample_image_A
         self.sample_image_B = args.sample_image_B
         self.save_model = args.save_model
+        self.start_epoch = args.start_epoch
 
         self.discriminator = discriminator
         if args.use_resnet:
@@ -144,6 +165,8 @@ class cyclegan(object):
                 print(" [!] Load failed...")
 
         for epoch in range(args.epoch):
+            epoch += self.start_epoch
+            counterInEpoch = 0
             dataA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
             dataB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
             np.random.shuffle(dataA)
@@ -172,14 +195,16 @@ class cyclegan(object):
                                self.fake_B_sample: fake_B,
                                self.lr: lr})
                 self.writer.add_summary(summary_str, counter)
-
+                counterInEpoch += 1
                 counter += 1
                 print(("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (
                     epoch, idx, batch_idxs, time.time() - start_time)))
 
-                if np.mod(counter, args.print_freq) == 1:
+                #每過一段時間做sample
+                if np.mod(counterInEpoch, args.print_freq) == 1:
                     self.sample_model(args.sample_dir, epoch, idx)
 
+                #每過一段時間存model
                 if np.mod(counter, args.save_freq) == 2:
                     self.save(args.checkpoint_dir, counter)
                     #額外存起來
@@ -197,12 +222,14 @@ class cyclegan(object):
         #創一個專門放的資料夾
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        #把目前checkpoint裡面的內容備份
-        sourceLink = './checkpoint/'+str(self.dataset_dir)+'/'
+        #把目前checkpoint裡面的內容備份self.image_size
+        sourceLink = './checkpoint/'+str(self.dataset_dir)+'_'+str(self.image_size)+'/'
         targetLink = './'+str(save_dir)+'/epoch'+str(epoch_now)+'/'
-
-        shutil.copytree(sourceLink,targetLink)
-
+        #如果已經備份過了 顯示錯誤 並不重複備份
+        try:
+            shutil.copytree(sourceLink,targetLink)
+        except:
+            print("%s folder already exists" % (str(epoch_now)) )
 
 
     def save(self, checkpoint_dir, step):
@@ -230,6 +257,7 @@ class cyclegan(object):
             return True
         else:
             return False
+
     #有改過 by柏辰
     def sample_model(self, sample_dir, epoch, idx):
         #設定要用哪一張圖片當sample A
@@ -238,6 +266,7 @@ class cyclegan(object):
             dataA.append('./datasets/'+str(self.dataset_dir)+'/testA/'+self.sample_image_A)
             pass
         else:
+            #若無特別設定 隨機挑一張
             dataA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testA'))
             np.random.shuffle(dataA)
         #設定要用哪一張圖片當sample B
@@ -246,21 +275,24 @@ class cyclegan(object):
             dataB.append('./datasets/'+str(self.dataset_dir)+'/testB/'+self.sample_image_B)
             pass
         else:
+            #若無特別設定 隨機挑一張
             dataB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/testB'))
             np.random.shuffle(dataB)
-
+        #圖片正規化
         batch_files = list(zip(dataA[:self.batch_size], dataB[:self.batch_size]))
         sample_images = [load_train_data(batch_file, is_testing=True) for batch_file in batch_files]
         sample_images = np.array(sample_images).astype(np.float32)
 
+        #生成圖片
         fake_A, fake_B = self.sess.run(
             [self.fake_A, self.fake_B],
             feed_dict={self.real_data: sample_images}
         )
+        #儲存圖片
         save_images(fake_A, [self.batch_size, 1],
-                    './{}/A_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
+                    './{}/A_{:03d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
         save_images(fake_B, [self.batch_size, 1],
-                    './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
+                    './{}/B_{:03d}_{:04d}.jpg'.format(sample_dir, epoch, idx))
 
     def test(self, args):
         """Test cyclegan"""
@@ -276,7 +308,7 @@ class cyclegan(object):
         if self.load(args.checkpoint_dir):
             print(" [*] Load SUCCESS")
         else:
-            print(" [!] Load failed...")
+            print(" [!] Load failed...") 
 
         # write html for visual comparison
         index_path = os.path.join(args.test_dir, '{0}_index.html'.format(args.which_direction))
